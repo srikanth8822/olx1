@@ -1,10 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { MenuProps } from "../types";
 
-type MenuProp = {
-  setMenu: (menu: string) => void;
-};
-
-const Menubar = (props: MenuProp) => {
+const Menubar = (props: MenuProps) => {
   const [activeCategory, setActiveCategory] = useState("");
 
   const categories = [

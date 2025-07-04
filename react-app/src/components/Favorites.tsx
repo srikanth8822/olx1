@@ -10,6 +10,17 @@ const Favorites = () => {
     fetchFavorites();
   }, []);
 
+  // Refetch favorites when a product is added from Home
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'favoritesUpdated') {
+        fetchFavorites();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
   const fetchFavorites = async () => {
     const token = localStorage.getItem('authToken');
     if (!token) {
@@ -18,9 +29,13 @@ const Favorites = () => {
     }
 
     try {
-      const result = await favoritesAPI.getAll();
-      if (result.success && result.data) {
+      const result = await favoritesAPI.getAdposts();
+      console.log('Favorites API response:', result);
+      
+      if (result.data && Array.isArray(result.data)) {
         setFavoriteProducts(result.data);
+      } else if (Array.isArray(result)) {
+        setFavoriteProducts(result);
       }
     } catch (error) {
       console.error("Error fetching favorites:", error);
@@ -31,11 +46,12 @@ const Favorites = () => {
 
   const removeFavorite = async (adpostId: string) => {
     try {
-      const result = await favoritesAPI.remove(adpostId);
-      if (result.success) {
-        setFavoriteProducts(prev => prev.filter(product => product.adpost_id !== adpostId));
+      const response = await favoritesAPI.remove(adpostId);
+      if (response && response.message === 'Adpost removed from favourites') {
+        setFavoriteProducts(prev => prev.filter(product => product._id !== adpostId));
+        localStorage.setItem('favoritesUpdated', Date.now().toString()); // Notify other tabs/components
       } else {
-        alert(result.message || 'Failed to remove from favorites');
+        alert(response.message || 'Error removing from favorites');
       }
     } catch (error) {
       console.error("Error removing favorite:", error);
@@ -98,7 +114,7 @@ const Favorites = () => {
               <div key={favorite._id} className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow relative">
                 {/* Remove from favorites button */}
                 <button
-                  onClick={() => removeFavorite(favorite.adpost_id)}
+                  onClick={() => removeFavorite(favorite._id)}
                   className="absolute top-2 right-2 z-10 p-1 rounded-full bg-white bg-opacity-80 hover:bg-opacity-100 transition-all"
                 >
                   <svg className="w-5 h-5 fill-red-500 text-red-500" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,39 +122,48 @@ const Favorites = () => {
                   </svg>
                 </button>
 
-                <Link to="/details" state={{ data: favorite.adpost_details }}>
+                <Link to="/details" state={{ data: favorite }}>
                   <div className="p-3">
                     <div className="aspect-square overflow-hidden rounded mb-3">
-                      <img 
-                        src={favorite.adpost_details?.assets?.[0] ? 
-                          `http://localhost:8080/adpost_assets/${favorite.adpost_details.assets[0]}` : 
-                          `https://via.placeholder.com/200x200?text=${encodeURIComponent(favorite.adpost_details?.category || 'Product')}`
-                        } 
-                        alt={favorite.adpost_details?.title} 
-                        className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.onerror = null;
-                          target.src = `https://via.placeholder.com/200x200/6B7280/FFFFFF?text=${encodeURIComponent(favorite.adpost_details?.category || 'Product')}`;
-                        }}
-                      />
+                      {Array.isArray(favorite.images) && favorite.images.length > 0 ? (
+                        <img 
+                          src={favorite.images[0].startsWith('http') ? favorite.images[0] : `http://13.200.179.78/${favorite.images[0]}`}
+                          alt={favorite.title} 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : favorite.assets?.[0] ? (
+                        <img 
+                          src={`http://13.200.179.78/adpost_assets/${favorite.assets[0]}`}
+                          alt={favorite.title} 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : favorite.thumb ? (
+                        <img 
+                          src={`http://13.200.179.78/${favorite.thumb}`}
+                          alt={favorite.title} 
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-gray-500 text-sm">{favorite.category}</span>
+                        </div>
+                      )}
                     </div>
-                    
                     <div>
                       <h1 className="font-bold text-lg text-gray-900 mb-1">
-                        ₹{favorite.adpost_details?.price ? Number(favorite.adpost_details.price).toLocaleString('en-IN') : 'N/A'}
+                        ₹{favorite.price ? Number(favorite.price).toLocaleString('en-IN') : 'N/A'}
                       </h1>
                       <h2 className="text-sm text-gray-800 line-clamp-2 mb-2">
-                        {favorite.adpost_details?.title || 'No Title'}
+                        {favorite.title || 'No Title'}
                       </h2>
                       <p className="text-xs text-gray-600 mb-1">
-                        {favorite.adpost_details?.category || 'Uncategorized'}
+                        {favorite.category || 'Uncategorized'}
                       </p>
                       <p className="text-xs text-gray-500 flex items-center">
                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
                         </svg>
-                        {favorite.adpost_details?.location || 'Location not specified'}
+                        {favorite.location || 'Location not specified'}
                       </p>
                     </div>
                   </div>

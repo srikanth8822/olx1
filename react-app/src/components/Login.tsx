@@ -1,20 +1,18 @@
 import { useState } from "react";
 import guitar from "../assets/guitar.png";
 import { authAPI } from "../services/api";
-
-type LoginProps = {
-  setLoginPop: (value: boolean) => void;
-}
+import { LoginProps } from "../types";
 
 const Login = (props: LoginProps) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    name: "",
-    phone: ""
+    first_name: "",
+    last_name: ""
   });
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -33,18 +31,15 @@ const Login = (props: LoginProps) => {
         password: formData.password
       });
 
-      if (result.success) {
-        localStorage.setItem('authToken', result.token);
-        localStorage.setItem('user', JSON.stringify(result.user));
-        alert('Login successful!');
+      if (result.message === 'Login successful') {
+        localStorage.setItem('authToken', result.session);
         props.setLoginPop(false);
         window.location.reload();
       } else {
-        alert(result.message || 'Login failed');
+        alert(result.error || 'Invalid credentials');
       }
     } catch (error) {
-      console.error('Login error:', error);
-      alert('Login failed. Please try again.');
+      alert('Login failed. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -56,21 +51,21 @@ const Login = (props: LoginProps) => {
 
     try {
       const result = await authAPI.register({
-        name: formData.name,
+        first_name: formData.first_name,
+        last_name: formData.last_name,
         email: formData.email,
-        password: formData.password,
-        phone: formData.phone
+        password: formData.password
       });
 
-      if (result.success) {
-        alert('Registration successful! Please login.');
+      if (result.message === 'User registered successfully') {
         setIsLogin(true);
+        setFormData({ email: formData.email, password: "", first_name: "", last_name: "" });
+        alert('Registration successful! Please login.');
       } else {
-        alert(result.message || 'Registration failed');
+        alert(result.error || 'Registration failed');
       }
     } catch (error) {
-      console.error('Registration error:', error);
-      alert('Registration failed. Please try again.');
+      alert('Registration failed. Please check your connection.');
     } finally {
       setLoading(false);
     }
@@ -119,15 +114,33 @@ const Login = (props: LoginProps) => {
               className="w-full p-3 border border-gray-300 rounded"
               required
             />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="w-full p-3 border border-gray-300 rounded"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+              >
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               type="submit"
               disabled={loading}
@@ -140,9 +153,18 @@ const Login = (props: LoginProps) => {
           <form onSubmit={handleRegister} className="space-y-4">
             <input
               type="text"
-              name="name"
-              placeholder="Full Name"
-              value={formData.name}
+              name="first_name"
+              placeholder="First Name"
+              value={formData.first_name}
+              onChange={handleInputChange}
+              className="w-full p-3 border border-gray-300 rounded"
+              required
+            />
+            <input
+              type="text"
+              name="last_name"
+              placeholder="Last Name"
+              value={formData.last_name}
               onChange={handleInputChange}
               className="w-full p-3 border border-gray-300 rounded"
               required
@@ -156,24 +178,34 @@ const Login = (props: LoginProps) => {
               className="w-full p-3 border border-gray-300 rounded"
               required
             />
-            <input
-              type="tel"
-              name="phone"
-              placeholder="Phone Number"
-              value={formData.phone}
-              onChange={handleInputChange}
-              className="w-full p-3 border border-gray-300 rounded"
-              required
-            />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="w-full p-3 border border-gray-300 rounded"
-              required
-            />
+
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+              >
+                {showPassword ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.878 9.878L3 3m6.878 6.878L21 21"/>
+                  </svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                  </svg>
+                )}
+              </button>
+            </div>
             <button
               type="submit"
               disabled={loading}

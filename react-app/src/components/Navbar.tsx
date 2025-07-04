@@ -1,15 +1,12 @@
-import olx from "../assets/olx.png"
+import olx from "../assets/Untitled design (19).png"
 import lens from "../assets/lens.png"
 import arrow from "../assets/arrow.png"
 import search from "../assets/search.png"
 import Login from "./Login"
 import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
-
-type NavbarProps = {
-  setSearch: any;
-  setLocation: (location: string) => void;
-}
+import { NavbarProps, User } from "../types"
+import { authAPI } from "../services/api"
 
 const Navbar = (props: NavbarProps) => {
   const [loginPop, setLoginPop] = useState(false)
@@ -17,7 +14,8 @@ const Navbar = (props: NavbarProps) => {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState("Location")
   const [isGettingLocation, setIsGettingLocation] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false)
 
   useEffect(() => {
     // Get unique locations from all products
@@ -25,18 +23,23 @@ const Navbar = (props: NavbarProps) => {
       const userProducts = JSON.parse(localStorage.getItem('userProducts') || '[]');
       const apiLocations = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Kolkata', 'Hyderabad', 'Pune', 'Ahmedabad', 'Jaipur', 'Lucknow'];
       
-      const userLocations = userProducts.map((product: any) => product.location).filter(Boolean);
+      const userLocations = userProducts.map((product: { location?: string }) => product.location).filter(Boolean);
       const allLocations = [...new Set([...userLocations, ...apiLocations])];
       
       setLocations(allLocations);
     };
 
-    const fetchUserData = () => {
+    const fetchUserData = async () => {
       const token = localStorage.getItem('authToken');
       if (token) {
-        const userData = localStorage.getItem('user');
-        if (userData) {
-          setUser(JSON.parse(userData));
+        try {
+          const result = await authAPI.getUser();
+          if (result.first_name) {
+            setUser(result);
+          }
+        } catch (error) {
+          localStorage.removeItem('authToken');
+          setUser(null);
         }
       }
     };
@@ -112,7 +115,7 @@ const Navbar = (props: NavbarProps) => {
     <div className="md:hidden">
       <div className="flex justify-between items-center p-3 bg-slate-100">
         <Link to="/">
-          <img src={olx} className="w-11 h-9"/>
+          <img src={olx} className="w-30 h-20"/>
         </Link>
         <div className="flex items-center space-x-3">
           <Link to="/favorites" className="text-gray-700">
@@ -121,16 +124,61 @@ const Navbar = (props: NavbarProps) => {
             </svg>
           </Link>
           {user ? (
-            <div className="flex items-center space-x-2">
-              <Link to="/profile" className="text-sm font-semibold text-gray-700">
-                {user.name}
-              </Link>
-              <button 
-                onClick={handleLogout}
-                className="text-sm font-semibold text-red-600"
+            <div className="relative">
+              <div 
+                onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                className="flex items-center space-x-1 cursor-pointer"
               >
-                Logout
-              </button>
+                <div className="w-6 h-6 bg-gray-300 rounded-full flex items-center justify-center">
+                  <span className="text-xs font-bold">{user.first_name[0] || user.name?.[0] || 'U'}</span>
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-semibold">{user.first_name}</div>
+                  <div className="text-xs text-gray-500">{user.email}</div>
+                </div>
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/>
+                </svg>
+              </div>
+              
+              {showProfileDropdown && (
+                <div className="absolute top-full right-0 mt-1 bg-white border rounded shadow-lg z-20 w-40">
+                  <Link 
+                    to="/profile" 
+                    className="block px-3 py-2 hover:bg-gray-100 text-xs"
+                    onClick={() => setShowProfileDropdown(false)}
+                  >
+                    Update Profile
+                  </Link>
+                  <button 
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-xs"
+                    onClick={() => setShowProfileDropdown(false)}
+                  >
+                    Reset Password
+                  </button>
+                  <button 
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-xs"
+                    onClick={() => setShowProfileDropdown(false)}
+                  >
+                    Buy Package
+                  </button>
+                  <button 
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-xs"
+                    onClick={() => setShowProfileDropdown(false)}
+                  >
+                    Settings
+                  </button>
+                  <button 
+                    onClick={() => {
+                      handleLogout();
+                      setShowProfileDropdown(false);
+                    }}
+                    className="block w-full text-left px-3 py-2 hover:bg-gray-100 text-xs text-red-600 border-t"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <div 
@@ -197,7 +245,7 @@ const Navbar = (props: NavbarProps) => {
       <div className="px-3 pb-3 bg-slate-100">
         <div className="flex items-center border border-gray-300 rounded bg-white">
           <input 
-            onChange={(e)=> props?.setSearch(e.target.value)} 
+            onChange={(e)=> props.setSearch(e.target.value)} 
             placeholder="Find Cars, Mobile phones and more..." 
             className="flex-1 p-3 outline-none text-sm"
           />
@@ -211,7 +259,7 @@ const Navbar = (props: NavbarProps) => {
     {/* Desktop View */}
     <div className="hidden md:flex p-4 bg-slate-100 shadow-md">
       <Link to="/">
-        <img src={olx} className="w-11 h-9"/>
+        <img src={olx} className="w-18 h-14"/>
       </Link>
       
       <div className="flex space-x-4 ml-5 flex-1">
@@ -270,7 +318,7 @@ const Navbar = (props: NavbarProps) => {
 
         <div className="flex h-12 border-2 border-black bg-white flex-1">
           <input 
-            onChange={(e)=> props?.setSearch(e.target.value)} 
+            onChange={(e)=> props.setSearch(e.target.value)} 
             placeholder="Find Cars, Mobile phones and more" 
             className="ml-3 flex-1 outline-none"
           />
@@ -286,16 +334,61 @@ const Navbar = (props: NavbarProps) => {
         </Link>
         
         {user ? (
-          <div className="flex items-center space-x-4">
-            <Link to="/profile" className="flex h-12 p-3 cursor-pointer items-center">
-              <h1 className="font-bold text-lg">{user.name}</h1>
-            </Link>
-            <button 
-              onClick={handleLogout}
-              className="flex h-12 p-3 cursor-pointer text-red-600"
+          <div className="relative">
+            <div 
+              onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+              className="flex items-center space-x-2 h-12 p-3 cursor-pointer hover:bg-gray-100 rounded"
             >
-              <h1 className="font-bold text-lg">Logout</h1>
-            </button>
+              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                <span className="text-sm font-bold">{user.first_name[0] || user.name?.[0] || 'U'}</span>
+              </div>
+              <div className="text-left">
+                <div className="text-sm font-semibold">{user.first_name} {user.last_name}</div>
+                <div className="text-xs text-gray-500">{user.email}</div>
+              </div>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+            
+            {showProfileDropdown && (
+              <div className="absolute top-full right-0 mt-1 bg-white border rounded shadow-lg z-20 w-48">
+                <Link 
+                  to="/profile" 
+                  className="block px-4 py-2 hover:bg-gray-100 text-sm"
+                  onClick={() => setShowProfileDropdown(false)}
+                >
+                  Update Profile
+                </Link>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  onClick={() => setShowProfileDropdown(false)}
+                >
+                  Reset Password
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  onClick={() => setShowProfileDropdown(false)}
+                >
+                  Buy Package
+                </button>
+                <button 
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm"
+                  onClick={() => setShowProfileDropdown(false)}
+                >
+                  Settings
+                </button>
+                <button 
+                  onClick={() => {
+                    handleLogout();
+                    setShowProfileDropdown(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-sm text-red-600 border-t"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div 

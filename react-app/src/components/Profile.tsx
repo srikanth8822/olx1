@@ -1,29 +1,59 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { adPostsAPI, authAPI, packageAPI } from "../services/api";
+import ProfileForm from "./ProfileForm";
 
 const Profile = () => {
+  const navigate = useNavigate();
   const [userAds, setUserAds] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [packages, setPackages] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState("ads");
+  const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(true);
   const [profilePic, setProfilePic] = useState<File | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: ''
+  });
 
   useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      navigate('/');
+      return;
+    }
     fetchUserData();
     fetchUserAds();
     fetchPackages();
-  }, []);
+  }, [navigate]);
 
   const fetchUserData = async () => {
     try {
       const result = await authAPI.getUser();
-      if (result.success) {
-        setUser(result.data);
+      if (result.first_name) {
+        setUser(result);
+        setFormData({
+          first_name: result.first_name || '',
+          last_name: result.last_name || '',
+          email: result.email || '',
+          phone: result.phone || '',
+          address: result.address || '',
+          city: result.city || '',
+          state: result.state || '',
+          pincode: result.pincode || ''
+        });
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
+      localStorage.removeItem('authToken');
+      navigate('/');
     }
   };
 
@@ -143,12 +173,17 @@ const Profile = () => {
         {/* Profile Info */}
         <div className="flex items-center space-x-4 mb-6">
           <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center">
-            <span className="text-xl font-bold">{user?.name?.[0] || 'U'}</span>
+            <span className="text-xl font-bold">{user?.first_name?.[0] || 'U'}</span>
           </div>
           <div>
-            <h2 className="text-xl font-semibold">{user?.name || 'User Name'}</h2>
+            <h2 className="text-xl font-semibold">{user?.first_name} {user?.last_name}</h2>
             <p className="text-gray-600">{user?.email}</p>
             <p className="text-gray-600">Member since {new Date(user?.created_at).getFullYear() || '2024'}</p>
+            <div className="mt-2 space-y-1">
+              <p className="text-sm text-gray-500">Status: <span className={`${user?.isActive ? 'text-green-600' : 'text-red-600'}`}>{user?.isActive ? 'Active' : 'Inactive'}</span></p>
+              {user?.isSuspended && <p className="text-sm text-red-600">Account Suspended</p>}
+              <p className="text-sm text-gray-500">Last Updated: {new Date(user?.last_updated_at).toLocaleDateString()}</p>
+            </div>
           </div>
         </div>
 
@@ -170,6 +205,15 @@ const Profile = () => {
               Upload
             </button>
           </div>
+          {user?.display_picture && (
+            <div className="mt-2">
+              <img 
+                src={`http://13.200.179.78/display_pictures/${user.display_picture}`} 
+                alt="Profile" 
+                className="w-20 h-20 object-cover rounded-full"
+              />
+            </div>
+          )}
         </div>
 
         {/* Stats */}
@@ -197,6 +241,16 @@ const Profile = () => {
       <div className="bg-white rounded-lg shadow-md">
         <div className="flex border-b">
           <button
+            onClick={() => setActiveTab("profile")}
+            className={`px-6 py-3 font-medium ${
+              activeTab === "profile"
+                ? "border-b-2 border-blue-500 text-blue-600"
+                : "text-gray-600"
+            }`}
+          >
+            Profile Details
+          </button>
+          <button
             onClick={() => setActiveTab("ads")}
             className={`px-6 py-3 font-medium ${
               activeTab === "ads"
@@ -219,7 +273,9 @@ const Profile = () => {
         </div>
 
         <div className="p-6">
-          {activeTab === "ads" ? (
+          {activeTab === "profile" ? (
+            <ProfileForm user={user} onUpdate={fetchUserData} />
+          ) : activeTab === "ads" ? (
             <div>
               {userAds.length === 0 ? (
                 <div className="text-center py-8">
@@ -236,7 +292,7 @@ const Profile = () => {
                   {userAds.map((ad) => (
                     <div key={ad._id} className="flex items-center space-x-4 p-4 border rounded-lg">
                       <img
-                        src={ad.assets?.[0] ? `http://localhost:8080/adpost_assets/${ad.assets[0]}` : `https://via.placeholder.com/80x80?text=${encodeURIComponent(ad.category || 'Ad')}`}
+                        src={ad.assets?.[0] ? `http://13.200.179.78/adpost_assets/${ad.assets[0]}` : `https://via.placeholder.com/80x80?text=${encodeURIComponent(ad.category || 'Ad')}`}
                         alt={ad.title}
                         className="w-20 h-20 object-cover rounded"
                       />

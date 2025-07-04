@@ -1,9 +1,14 @@
 import { useLocation, Link } from "react-router-dom";
 import { useState } from "react";
+import { Product } from "../types";
+
+interface LocationState {
+  data: Product;
+}
 
 const Details = () => {
   const location = useLocation();
-  const { data } = location.state || {};
+  const { data } = (location.state as LocationState) || { data: null };
   const [showPhone, setShowPhone] = useState(false);
 
   if (!data) {
@@ -17,7 +22,7 @@ const Details = () => {
     );
   }
 
-  const getImageUrl = (product: any) => {
+  const getImageUrl = (product: Product) => {
     // Use original API image if available
     if (product?.thumb) {
       return `http://13.200.179.78/${product.thumb}`;
@@ -38,7 +43,7 @@ const Details = () => {
       'Services': 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&h=400&fit=crop&auto=format'
     };
     
-    return categoryImages[product?.category as keyof typeof categoryImages] || 
+    return categoryImages[product.category as keyof typeof categoryImages] || 
            'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=600&h=400&fit=crop&auto=format';
   };
 
